@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Recorrido 3D</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configuración de Tailwind para usar la fuente Inter y extender temas si es necesario
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'], // Define 'Inter' como la fuente predeterminada
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos personalizados para el modal */
+        .modal {
+            display: none; /* Oculto por defecto */
+            position: fixed; /* Posición fija en la ventana */
+            z-index: 1000; /* Se sitúa encima de otros elementos */
+            left: 0;
+            top: 0;
+            width: 100%; /* Ancho completo */
+            height: 100%; /* Alto completo */
+            overflow: auto; /* Permite el scroll si el contenido es demasiado grande */
+            background-color: rgba(0,0,0,0.4); /* Fondo semi-transparente */
+            justify-content: center; /* Centra el contenido horizontalmente */
+            align-items: center; /* Centra el contenido verticalmente */
+        }
+
+        .modal-content {
+            background-color: #fefefe; /* Fondo blanco para el contenido del modal */
+            margin: auto; /* Centrado automático */
+            padding: 20px;
+            border-radius: 0.75rem; /* Bordes redondeados (clase Tailwind rounded-xl) */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Sombra (clase Tailwind shadow-lg) */
+            width: 80%; /* Ancho del modal */
+            max-width: 500px; /* Ancho máximo del modal */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-6 md:p-8 font-sans">
+
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Generador de Recorrido 3D</h1>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Campo de entrada para el tiempo total -->
+            <div class="flex flex-col">
+                <label for="totalTime" class="text-gray-700 mb-1">Tiempo total (ms):</label>
+                <input type="number" id="totalTime" value="5000" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <!-- Campo de entrada para la cantidad de puntos -->
+            <div class="flex flex-col">
+                <label for="pointsCount" class="text-gray-700 mb-1">Cantidad de puntos:</label>
+                <input type="number" id="pointsCount" value="100" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <!-- Campo de entrada para la altura base -->
+            <div class="flex flex-col">
+                <label for="baseHeight" class="text-gray-700 mb-1">Altura base (Y):</label>
+                <input type="number" step="0.1" id="baseHeight" value="1.60" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-6">
+            <!-- Botón para generar el recorrido -->
+            <button onclick="generarDatos()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                Generar Recorrido
+            </button>
+            <!-- Botón para importar JSON -->
+            <button onclick="importarJSON()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                Importar JSON
+            </button>
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+                <!-- Selector de modo (posición/rotación) -->
+                <div class="flex flex-col">
+                    <label for="modo" class="text-gray-700 mb-1">Modo:</label>
+                    <select id="modo" onchange="cargarGrafica()" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="position">Posición</option>
+                        <option value="rotation">Rotación</option>
+                    </select>
+                </div>
+                <!-- Selector de eje (X/Y/Z) -->
+                <div class="flex flex-col">
+                    <label for="ejeSelect" class="text-gray-700 mb-1">Eje:</label>
+                    <select id="ejeSelect" onchange="cargarGrafica()" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="x">Eje X</option>
+                        <option value="y">Eje Y</option>
+                        <option value="z">Eje Z</option>
+                    </select>
+                </div>
+                <!-- Selector de influencia -->
+                <div class="flex flex-col">
+                    <label for="influenciaSelect" class="text-gray-700 mb-1">Influencia:</label>
+                    <select id="influenciaSelect" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <!-- Opciones de influencia ampliadas -->
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="100">100</option>
+                        <option value="250">250</option>
+                        <option value="500">500</option>
+                        <option value="1500">1500</option>
+                    </select>
+                </div>
+                <!-- Selector de tipo de influencia (lineal/curva) -->
+                <div class="flex flex-col">
+                    <label for="tipoInfluenciaSelect" class="text-gray-700 mb-1">Tipo de Influencia:</label>
+                    <select id="tipoInfluenciaSelect" class="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="linear">Lineal</option>
+                        <option value="smooth_convex">Suave (Curva Convexa)</option>
+                        <option value="smooth_concave">Suave (Curva Cóncava)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 max-w-4xl mx-auto">
+        <!-- Canvas para el gráfico Chart.js -->
+        <canvas id="chartCanvas" class="w-full"></canvas>
+    </div>
+
+    <div class="flex justify-center mb-8 max-w-4xl mx-auto">
+        <!-- Botón para exportar los datos a JSON -->
+        <button onclick="exportarJSON()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+            Exportar JSON
+        </button>
+    </div>
+
+    <div class="bg-gray-50 p-6 rounded-xl shadow-inner max-w-4xl mx-auto">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">JSON de Recorrido (Primeros 10 puntos)</h2>
+        <!-- Área para mostrar el JSON de los primeros 10 puntos -->
+        <pre id="output" class="white-space-pre-wrap bg-gray-100 p-4 rounded-md text-sm text-gray-700 overflow-auto max-h-96"></pre>
+    </div>
+
+    <!-- Modal personalizado para la entrada de valores -->
+    <div id="inputModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" class="text-xl font-semibold text-gray-800 mb-4"></h3>
+            <input type="number" id="modalInput" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+            <div class="flex justify-end gap-2">
+                <button id="modalCancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">Cancelar</button>
+                <button id="modalConfirm" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        let recorrido = []; // Array para almacenar los datos del recorrido (posición y rotación)
+        let chart; // Objeto Chart.js
+        let currentChartIndex = -1; // Almacena el índice del punto clickeado en el gráfico
+
+        // Variables para la funcionalidad de arrastre
+        let isDragging = false;
+        let draggedPointIndex = -1;
+        let initialPointValue = 0;
+        let initialMouseY = 0;
+        let chartCanvas; // Referencia al canvas del gráfico
+
+        // Referencias a los elementos del modal
+        const inputModal = document.getElementById('inputModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalInput = document.getElementById('modalInput');
+        const modalConfirm = document.getElementById('modalConfirm');
+        const modalCancel = document.getElementById('modalCancel');
+
+        /**
+         * Muestra un modal personalizado para solicitar un valor al usuario.
+         * @param {string} title - Título del modal.
+         * @param {number} initialValue - Valor inicial en el campo de entrada.
+         * @param {function(string|null): void} callback - Función a llamar cuando el usuario confirma o cancela.
+         */
+        function showModal(title, initialValue, callback) {
+            modalTitle.textContent = title;
+            modalInput.value = initialValue;
+            inputModal.style.display = 'flex'; // Muestra el modal usando flexbox para centrarlo
+
+            // Limpia los listeners de eventos anteriores para evitar múltiples llamadas
+            modalConfirm.onclick = null;
+            modalCancel.onclick = null;
+
+            // Asigna los nuevos listeners para los botones del modal
+            modalConfirm.onclick = () => {
+                inputModal.style.display = 'none'; // Oculta el modal
+                callback(modalInput.value); // Llama al callback con el valor ingresado
+            };
+
+            modalCancel.onclick = () => {
+                inputModal.style.display = 'none'; // Oculta el modal
+                callback(null); // Llama al callback con null para indicar cancelación
+            };
+        }
+
+        /**
+         * Genera los datos iniciales del recorrido 3D.
+         * Calcula los puntos en función del tiempo total, la cantidad de puntos y la altura base.
+         */
+        function generarDatos() {
+            const totalTime = parseFloat(document.getElementById('totalTime').value);
+            const count = parseInt(document.getElementById('pointsCount').value);
+            const baseHeight = parseFloat(document.getElementById('baseHeight').value);
+
+            const step = totalTime / count; // Calcula el paso de tiempo entre cada punto
+            recorrido = []; // Reinicia el array de recorrido
+
+            // Crea cada punto del recorrido con valores iniciales
+            for (let i = 0; i < count; i++) {
+                recorrido.push({
+                    time: i * step, // Tiempo del punto
+                    position: {
+                        x: 0.00, // Almacenado como número
+                        y: baseHeight, // Almacenado como número
+                        z: 0.00  // Almacenado como número
+                    },
+                    rotation: {
+                        x: 0.00, // Almacenado como número
+                        y: 0.00, // Almacenado como número
+                        z: 0.00  // Almacenado como número
+                    }
+                });
+            }
+
+            cargarGrafica(); // Carga el gráfico con los datos generados
+        }
+
+        /**
+         * Carga o actualiza el gráfico Chart.js con los datos actuales del recorrido.
+         * Se basa en el modo (posición/rotación) y el eje (X/Y/Z) seleccionados.
+         */
+        function cargarGrafica() {
+            const ejeActual = document.getElementById('ejeSelect').value; // Eje seleccionado (x, y, z)
+            const modo = document.getElementById('modo').value; // Modo seleccionado (position, rotation)
+            // Etiquetas para el eje X del gráfico (tiempo en segundos)
+            const labels = recorrido.map(p => (p.time / 1000).toFixed(2));
+            // Datos para el eje Y del gráfico (valores de posición o rotación)
+            // Aseguramos que los datos sean números al leerlos para el gráfico
+            const data = recorrido.map(p => p[modo][ejeActual]);
+
+            chartCanvas = document.getElementById('chartCanvas'); // Obtiene la referencia al canvas
+            const ctx = chartCanvas.getContext('2d'); // Contexto 2D del canvas
+
+            if (chart) chart.destroy(); // Destruye el gráfico existente si lo hay
+
+            // Crea un nuevo gráfico de línea
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels, // Etiquetas del eje X
+                    datasets: [{
+                        label: `Modificar ${modo} en eje ${ejeActual.toUpperCase()}`, // Etiqueta del dataset
+                        data, // Datos del dataset
+                        pointRadius: 5, // Radio de los puntos
+                        pointHoverRadius: 8, // Radio de los puntos al pasar el ratón
+                        borderColor: modo === "position" ? '#3B82F6' : '#10B981', // Color de la línea (azul para posición, verde para rotación)
+                        backgroundColor: 'rgba(0,0,0,0.05)', // Color de fondo del área bajo la línea
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true, // Hace que el gráfico sea responsivo
+                    maintainAspectRatio: false, // Permite que el canvas cambie de tamaño libremente
+                    scales: {
+                        y: { beginAtZero: false } // El eje Y no necesariamente empieza en cero
+                    },
+                    onClick: (e) => {
+                        // Solo abre el modal si no hubo un arrastre
+                        if (!isDragging) {
+                            const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+                            if (points.length) {
+                                currentChartIndex = points[0].index;
+                                const modo = document.getElementById('modo').value;
+                                const ejeActual = document.getElementById('ejeSelect').value;
+                                const actual = recorrido[currentChartIndex][modo][ejeActual];
+
+                                showModal(
+                                    `Nuevo valor para punto ${currentChartIndex} en ${modo} eje ${ejeActual.toUpperCase()}:`,
+                                    actual.toFixed(2),
+                                    (nuevoValor) => {
+                                        if (nuevoValor !== null) {
+                                            const influencia = parseInt(document.getElementById('influenciaSelect').value);
+                                            const nuevo = parseFloat(nuevoValor);
+                                            applyInfluence(currentChartIndex, nuevo, actual, influencia, modo, ejeActual, document.getElementById('tipoInfluenciaSelect').value);
+                                            chart.update();
+                                            mostrarJSONparcial();
+                                        }
+                                    }
+                                );
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Asegura que el canvas tenga una altura para que Chart.js pueda renderizarlo correctamente
+            chartCanvas.style.height = '400px'; // Altura predeterminada para el gráfico
+
+            // Añadir listeners para arrastrar
+            chartCanvas.addEventListener('mousedown', handleMouseDown);
+            // Los listeners de mousemove y mouseup se añaden al window para capturar arrastres fuera del canvas
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+
+            mostrarJSONparcial(); // Muestra la vista previa del JSON inicial
+        }
+
+        /**
+         * Aplica la influencia a los puntos circundantes.
+         * @param {number} centerIndex - Índice del punto central modificado.
+         * @param {number} newValue - Nuevo valor del punto central.
+         * @param {number} actualValue - Valor original del punto central antes de la modificación.
+         * @param {number} influencia - Rango de influencia.
+         * @param {string} modo - 'position' o 'rotation'.
+         * @param {string} ejeActual - 'x', 'y' o 'z'.
+         * @param {string} tipoInfluencia - 'linear', 'smooth_convex' o 'smooth_concave'.
+         */
+        function applyInfluence(centerIndex, newValue, actualValue, influencia, modo, ejeActual, tipoInfluencia) {
+            for (let offset = -influencia; offset <= influencia; offset++) {
+                const i = centerIndex + offset;
+                if (i < 0 || i >= recorrido.length) continue;
+
+                const distancia = Math.abs(offset);
+                let factor;
+
+                if (tipoInfluencia === 'linear') {
+                    factor = distancia === 0 ? 1 : 1 - (distancia / (influencia + 1));
+                } else if (tipoInfluencia === 'smooth_convex') {
+                    factor = Math.pow(1 - (distancia / (influencia + 1)), 2);
+                } else { // 'smooth_concave'
+                    const normalizedDistance = distancia / (influencia + 1);
+                    factor = (Math.cos(Math.PI * normalizedDistance) + 1) / 2;
+                }
+                
+                factor = Math.max(0, factor); // Asegurarse de que el factor no sea negativo
+
+                const valorOriginal = recorrido[i][modo][ejeActual];
+                const cambio = (newValue - actualValue) * factor;
+                const nuevoCalculado = valorOriginal + cambio;
+
+                chart.data.datasets[0].data[i] = nuevoCalculado;
+                recorrido[i][modo][ejeActual] = nuevoCalculado;
+            }
+        }
+
+        /**
+         * Maneja el evento mousedown en el canvas del gráfico para iniciar el arrastre.
+         * @param {MouseEvent} e - Objeto de evento del ratón.
+         */
+        function handleMouseDown(e) {
+            const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+            if (points.length) {
+                isDragging = true;
+                draggedPointIndex = points[0].index;
+                initialMouseY = e.clientY;
+                
+                const modo = document.getElementById('modo').value;
+                const ejeActual = document.getElementById('ejeSelect').value;
+                initialPointValue = recorrido[draggedPointIndex][modo][ejeActual];
+
+                // Prevenir la selección de texto al arrastrar
+                e.preventDefault(); 
+            }
+        }
+
+        /**
+         * Maneja el evento mousemove para actualizar el valor del punto arrastrado.
+         * @param {MouseEvent} e - Objeto de evento del ratón.
+         */
+        function handleMouseMove(e) {
+            if (isDragging && draggedPointIndex !== -1) {
+                const modo = document.getElementById('modo').value;
+                const ejeActual = document.getElementById('ejeSelect').value;
+                const influencia = parseInt(document.getElementById('influenciaSelect').value);
+                const tipoInfluencia = document.getElementById('tipoInfluenciaSelect').value;
+
+                const yScale = chart.scales.y;
+                const pixelDelta = initialMouseY - e.clientY; 
+                
+                // Se ha reducido la sensibilidad dividiendo por un factor (ej. 5)
+                // Puedes ajustar este factor (5) para hacer el arrastre más o menos sensible.
+                const sensitivity = ((yScale.max - yScale.min) / yScale.height) / 5; 
+                const newValue = initialPointValue + (pixelDelta * sensitivity);
+
+                // Aplicar la influencia
+                applyInfluence(draggedPointIndex, newValue, initialPointValue, influencia, modo, ejeActual, tipoInfluencia);
+
+                chart.update(); // Actualiza visualmente el gráfico
+                mostrarJSONparcial(); // Actualiza la vista previa del JSON
+            }
+        }
+
+        /**
+         * Maneja el evento mouseup para finalizar el arrastre.
+         */
+        function handleMouseUp() {
+            isDragging = false;
+            draggedPointIndex = -1;
+        }
+
+        /**
+         * Muestra los primeros 10 puntos del recorrido en formato JSON en el área de salida.
+         */
+        function mostrarJSONparcial() {
+            // Formateamos los números a 2 decimales solo para la visualización en el JSON
+            const formattedRecorrido = recorrido.slice(0, 10).map(p => ({
+                ...p,
+                position: {
+                    x: p.position.x.toFixed(2),
+                    y: p.position.y.toFixed(2),
+                    z: p.position.z.toFixed(2)
+                },
+                rotation: {
+                    x: p.rotation.x.toFixed(2),
+                    y: p.rotation.y.toFixed(2),
+                    z: p.rotation.z.toFixed(2)
+                }
+            }));
+            document.getElementById('output').textContent =
+                JSON.stringify(formattedRecorrido, null, 2); // Muestra los primeros 10 elementos formateados
+        }
+
+        /**
+         * Exporta el recorrido completo a un archivo JSON descargable.
+         */
+        function exportarJSON() {
+            // Formateamos los números a 2 decimales para la exportación final del JSON
+            const formattedRecorrido = recorrido.map(p => ({
+                ...p,
+                position: {
+                    x: p.position.x.toFixed(2),
+                    y: p.position.y.toFixed(2),
+                    z: p.position.z.toFixed(2)
+                },
+                rotation: {
+                    x: p.rotation.x.toFixed(2),
+                    y: p.rotation.y.toFixed(2),
+                    z: p.rotation.z.toFixed(2)
+                }
+            }));
+            // Crea un Blob con los datos JSON del recorrido
+            const blob = new Blob([JSON.stringify(formattedRecorrido, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob); // Crea una URL para el Blob
+            const a = document.createElement("a"); // Crea un elemento 'a' (enlace)
+            a.href = url; // Asigna la URL al enlace
+            a.download = "recorrido_generado.json"; // Nombre del archivo a descargar
+            a.click(); // Simula un click en el enlace para iniciar la descarga
+            URL.revokeObjectURL(url); // Libera la URL del Blob
+        }
+
+        /**
+         * Importa un archivo JSON para cargar un recorrido existente.
+         */
+        function importarJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json'; // Aceptar solo archivos JSON
+
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        // Validar la estructura del JSON importado
+                        if (Array.isArray(importedData) && importedData.every(item => 
+                            typeof item.time === 'number' &&
+                            typeof item.position === 'object' && item.position !== null &&
+                            typeof item.position.x !== 'undefined' && typeof item.position.y !== 'undefined' && typeof item.position.z !== 'undefined' &&
+                            typeof item.rotation === 'object' && item.rotation !== null &&
+                            typeof item.rotation.x !== 'undefined' && typeof item.rotation.y !== 'undefined' && typeof item.rotation.z !== 'undefined'
+                        )) {
+                            // Convertir todos los valores de posición/rotación a números si vienen como strings
+                            recorrido = importedData.map(item => ({
+                                ...item,
+                                position: {
+                                    x: parseFloat(item.position.x),
+                                    y: parseFloat(item.position.y),
+                                    z: parseFloat(item.position.z)
+                                },
+                                rotation: {
+                                    x: parseFloat(item.rotation.x),
+                                    y: parseFloat(item.rotation.y),
+                                    z: parseFloat(item.rotation.z)
+                                }
+                            }));
+                            cargarGrafica();
+                        } else {
+                            alert('El archivo JSON no tiene el formato de recorrido esperado.');
+                        }
+                    } catch (error) {
+                        alert('Error al leer o parsear el archivo JSON: ' + error.message);
+                    }
+                };
+                reader.readAsText(file); // Lee el archivo como texto
+            };
+            input.click(); // Simula un clic en el input de archivo
+        }
+
+
+        // Genera los datos iniciales y carga el gráfico cuando el DOM esté completamente cargado
+        document.addEventListener('DOMContentLoaded', generarDatos);
+    </script>
+
+</body>
+</html>
